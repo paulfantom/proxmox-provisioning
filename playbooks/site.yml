@@ -1,0 +1,9 @@
+---
+#- include: baseline.yml
+#- include: network.yml
+#- include: cluster.yml
+- include: storage.yml
+- include: proxy.yml
+- include: users.yml
+- include: metrics.yml
+#- include: extras.yml

@@ -1,0 +1,70 @@
+---
+### PLAYBOOK VARS:
+email: paulfantom@gmail.com
+nfs_shared_dir: /srv/shared
+lvm_pvs: /dev/sda5,/dev/sdb1
+pve_clustername: "SuperCluster"
+pve_admins:
+  - name: paulfantom
+    mail: "{{ email }}"
+    pass: "$5$ywcxKdD4$87Wc8XBldpHV86ryH78qUtAG82uacan/odpKPTN2jdC"
+
+iso_images:
+ - http://de.releases.ubuntu.com/16.04.3/ubuntu-16.04.3-server-amd64.iso
+ - http://centos.schlundtech.de/7/isos/x86_64/CentOS-7-x86_64-Minimal-1708.iso
+
+public_interface: eno1
+internal_interface: eno2
+
+### ROLES VARS:
+system_fqdn: "{{ ansible_host }}"
+system_motd: "Proxmox cluster"
+system_interface: "{{ internal_interface }}"
+system_time_servers:
+  - ntp1.hetzner.de
+  - ntp2.hetzner.com
+  - ntp3.hetzner.net
+
+ssh_allow_root_with_key: True
+
+users_exclusive_ssh_keys: false
+#users_login_notify: true
+#users_slack_webhook: "{{ vault_users_slack_webhook }}"
+users_environment: "Proxmox cluster {{ inventory_hostname }} ({{ system_fqdn }})"
+
+nginx_ssl_enable: true
+nginx_dh_bits: 4096
+nginx_metrics: True
+
+nginx_sites:
+  proxmox: |
+    server {
+      listen 80 default_server;
+      server_name {{ system_fqdn }};
+      location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root /var/www/letsencrypt;
+      }
+      location = /.well-known/acme-challenge/ {
+        return 404;
+      }
+      return 301 https://$server_name$request_uri;
+    }
+    server {
+      listen 443 ssl;
+      server_name {{ system_fqdn }};
+      ssl_certificate /etc/pve/local/pveproxy-ssl.pem;
+      ssl_certificate_key /etc/pve/local/pveproxy-ssl.key;
+      proxy_redirect off;
+      location / {
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_pass https://localhost:8006;
+        proxy_buffering off;
+        proxy_connect_timeout  3600s;
+        proxy_read_timeout  3600s;
+        proxy_send_timeout  3600s;
+        send_timeout  3600s;
+      }
+    }

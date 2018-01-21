@@ -1,0 +1,27 @@
+- hosts: all[0]
+  become: yes
+  tasks:
+  - name: Check if shadow exists
+    stat:
+      path: /etc/pve/priv/shadow.cfg
+    register: __shadow
+  - block:
+    - name: Create admins group
+      command: pveum groupadd admin -comment "System Administrators"
+    - name: Assign group permission
+      command: "pveum aclmod / -group admin -role Administrator"
+    - name: Create admin users
+      command: "pveum useradd {{ item.name }}@pve -email {{ item.mail }} -groups admin"
+      with_items: "{{ pve_admins }}"
+    - name: Placeholder shadow file
+      file:
+        state: touch
+        path: /etc/pve/priv/shadow.cfg
+    - name: Create shadow file
+      copy:
+        dest: /etc/pve/priv/shadow.cfg
+        content: |
+          {% for user in pve_admins %}
+          {{ user.name }}:{{ user.pass }}:
+          {% endfor %}
+    when: not __shadow.stat.exists

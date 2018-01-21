@@ -1,0 +1,8 @@
+*.swo
+*.swp
+.idea
+*.retry
+config/*
+roles/*
+!roles/requirements.yml
+playbooks/config/*

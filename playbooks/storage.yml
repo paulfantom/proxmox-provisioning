@@ -1,0 +1,98 @@
+- name: Create LVM storage on proxmox nodes
+  hosts: all
+  become: yes
+  any_errors_fatal: true
+  tasks:
+  - name: Add second PV to pve VG
+    lvg:
+      vg: pve
+      pvs: "{{ lvm_pvs }}"
+      state: present
+  - name: Create local dir
+    lvol:
+      vg: pve
+      lv: local
+      size: 1G
+  - name: Format local dir
+    filesystem:
+      fstype: ext4
+      dev: /dev/pve/local
+  - name: Persistent mount of local dir
+    mount:
+      path: /var/lib/vz
+      src: /dev/pve/local
+      fstype: ext4
+      state: mounted
+  - block:
+    - name: Create NFS share dir
+      lvol:
+        vg: pve
+        lv: nfsshare
+        size: 15G
+    - name: Format NFS share dir
+      filesystem:
+        fstype: ext4
+        dev: /dev/pve/nfsshare
+    - name: Persistent mount of NFS sharedir
+      mount:
+        path: "{{ nfs_shared_dir }}"
+        src: /dev/pve/nfsshare
+        fstype: ext4
+        state: mounted
+    when: "'nfs' in group_names"
+  - name: Create VM data VG (LVM-thin)
+    lvol:
+      vg: pve
+      lv: vms
+      size: +100%FREE
+      opts: "--thin"
+
+- name: Install NFS Server on NFS nodes
+  hosts: nfs
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: There can be only one NFS server
+    fail:
+      msg: Too many NFS servers
+    when: groups['nfs'] | length > 1
+  - name: Install nfs server
+    apt:
+      name: nfs-kernel-server
+      state: present
+  - name: Ensure shared dir is present
+    file:
+      path: "{{ nfs_shared_dir }}"
+      state: directory
+      mode: 0777
+  - name: Create exports file
+    copy:
+      dest: /etc/exports
+      content: |
+        {{ nfs_shared_dir }} *(rw,sync,no_root_squash)
+    register: __exports
+  - name: Export NFS shares
+    command: exportfs -r
+    when: __exports is changed
+
+- name: Configure storage on nodes
+  hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: Install NFS client
+    apt:
+      name: nfs-common
+      state: present
+  - name: Ensure storage config exists
+    file:
+      path: /etc/pve/storage.cfg
+      state: touch
+  - name: Copy storage template
+    template:
+      src: storage.cfg.j2
+      dest: /etc/pve/storage.cfg
+    when: "inventory_hostname == groups['all'][0]"
+  - name: Wait for propagation
+    pause:
+      seconds: 4

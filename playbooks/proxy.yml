@@ -1,0 +1,50 @@
+---
+- name: Configure nginx proxy with Letsencrypt certs
+  hosts: all
+  become: yes
+  roles:
+  - SoInteractive.nginx
+  pre_tasks:
+  - name: Install certbot
+    package:
+      name: certbot
+      state: present
+  
+  - name: Create webroot
+    file:
+      path: /var/www/letsencrypt
+      state: directory
+      owner: "www-data"
+      group: "www-data"
+  
+  - name: Check if letsencrypt certificate exist
+    stat:
+      path: "/etc/letsencrypt/live/{{ system_fqdn }}/cert.pem"
+    register: certificate_obtained
+  
+  - name: Copy certificate renewal script
+    template:
+      src: update_cert.sh.j2
+      dest: /root/.update_cert.sh
+      mode: "0750"
+
+  - name: Add renewal to crontab
+    cron:
+      name: letsencrypt
+      cron_file: /etc/crontab
+      user: root
+      minute: 21
+      hour: 1
+      job: "certbot renew --webroot -w /var/www/letsencrypt --text >> /var/log/letsencrypt/renewal.log --post-hook '/root/.update_cert.sh'"
+  
+  - block:
+    - name: Generate certificates
+      command: "certbot certonly --standalone -n --agree-tos -m {{ email }} -d {{ system_fqdn }}"
+      args:
+        creates: "/etc/letsencrypt/live/{{ system_fqdn }}/cert.pem"
+
+    - name: Update pveproxy certs
+      command: /root/.update_cert.sh
+      args:
+        creates: "/etc/pve/local/pveproxy-ssl.key"
+    when: not certificate_obtained.stat.exists

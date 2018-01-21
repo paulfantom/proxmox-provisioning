@@ -1,0 +1,10 @@
+---
+- name: SoInteractive.system
+
+- name: SoInteractive.users
+
+#- name: SoInteractive.firewall
+
+- name: cloudalchemy.node-exporter
+
+- name: SoInteractive.nginx

@@ -1,0 +1,87 @@
+---
+- name: Configure network devices
+  hosts: all
+  become: yes
+  any_errors_fatal: true
+  tasks:
+  - assert:
+      that:
+        - internal_interface in ansible_interfaces
+        - public_interface in ansible_interfaces
+      msg: "Network interfaces not found. Please check values of `internal_interface` and `public_interface`"
+  - name: Copy interfaces config
+    template:
+      src: interfaces.j2
+      dest: /etc/network/interfaces
+    register: __network_config
+
+  - block:
+    - name: Reboot to apply network config
+      shell: "sleep 5 && shutdown -r now 'Ansible triggered reboot'"
+      async: 1
+      poll: 0
+  
+    - name: Wait for server to come back online
+      wait_for_connection:
+        delay: 15
+    when: __network_config is changed
+
+- name: Ensure root access via SSH between proxmox nodes
+  hosts: all
+  become: yes
+  tasks:
+  - name: Create SSH directory for root
+    file:
+      path: /root/.ssh/
+      state: directory
+      mode: 0700
+  
+  - name: Create root SSH key pair for PVE
+    user:
+      name: root
+      generate_ssh_key: yes
+      ssh_key_file: /root/.ssh/id_rsa
+      ssh_key_type: rsa
+      ssh_key_comment: "root@{{ system_fqdn }}"
+  
+  - name: Fetch root SSH public key
+    fetch:
+      src: /root/.ssh/id_rsa.pub
+      dest: "config/{{ inventory_hostname }}/root_rsa.pub"
+      fail_on_missing: yes
+      flat: yes
+  
+  - name: Authorize all hosts root SSH public keys
+    authorized_key:
+      user: root
+      key: "{{ lookup('file', 'config/' + item + '/root_rsa.pub') }}"
+    with_items: "{{ groups['all'] }}"
+  
+  - name: Fetch SSH public host keys
+    fetch:
+      src: "/etc/ssh/{{ item }}"
+      dest: "config/{{ inventory_hostname }}/{{ item }}"
+      flat: yes
+    with_items:
+      - ssh_host_rsa_key.pub
+      - ssh_host_ed25519_key.pub
+      - ssh_host_ecdsa_key.pub
+  
+  - name: Check status of known hosts file
+    stat:
+      path: /etc/ssh/ssh_known_hosts
+    register: __pve_known_hosts_file
+  
+  - name: Add every host's host keys to global known_hosts
+    blockinfile:
+      dest: /etc/ssh/ssh_known_hosts
+      create: yes
+      marker: "# {mark}: PVE host keys (managed by ansible)."
+      content: |
+        {% for host in groups['all'] %}
+        {% for keytype in ['rsa', 'ed25519', 'ecdsa'] %}
+        {{ hostvars[host].ansible_host }},{{ hostvars[host].inventory_hostname }},{{ hostvars[host].internal_ip }} {{ ' '.join(lookup('file', 'config/' + host + '/ssh_host_' + keytype + '_key.pub').split()[:-1]) }}
+        {% endfor %}
+        {% endfor %}
+    when:
+      - "not (__pve_known_hosts_file.stat.islnk is defined and __pve_known_hosts_file.stat.islnk)"

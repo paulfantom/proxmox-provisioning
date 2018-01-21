@@ -1,0 +1,5 @@
+127.0.0.1 localhost
+
+{% for host in groups['all'] %}
+{{ hostvars[host]['internal_ip'] }} {{ hostvars[host]['inventory_hostname'] }} {{ hostvars[host]['ansible_host'] }}
+{% endfor %}

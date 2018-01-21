@@ -1,0 +1,12 @@
+node01 ansible_host=node01.proxmox internal_ip=192.168.2.11
+node02 ansible_host=node02.proxmox internal_ip=192.168.2.12
+node03 ansible_host=node03.proxmox internal_ip=192.168.2.13 public_interface=enp3s0 internal_interface=enp1s0
+
+[nfs]
+node01
+
+[metrics]
+node01
+
+[all:vars]
+ansible_user=root

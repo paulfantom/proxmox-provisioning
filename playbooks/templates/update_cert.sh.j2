@@ -1,0 +1,8 @@
+#!/bin/bash
+# {{ ansible_managed }}
+
+cp /etc/letsencrypt/live/{{ system_fqdn }}/privkey.pem /etc/pve/local/pveproxy-ssl.key
+cp /etc/letsencrypt/live/{{ system_fqdn }}/fullchain.pem /etc/pve/local/pveproxy-ssl.pem
+
+systemctl restart nginx
+systemctl restart pveproxy

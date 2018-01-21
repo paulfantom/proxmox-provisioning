@@ -1,0 +1,22 @@
+auto lo
+iface lo inet loopback
+
+auto vmbr0
+iface vmbr0 inet static
+    address  {{ ansible_default_ipv4.address }}
+    netmask  {{ ansible_default_ipv4.netmask }}
+    pointopoint {{ ansible_default_ipv4.gateway }}
+    gateway  {{ ansible_default_ipv4.gateway }}
+    bridge_ports {{ public_interface }}
+    bridge_stp off
+    bridge_fd 1
+    bridge_hello 2
+    bridge_maxage 12
+    post-up iptables -t nat -A POSTROUTING -o vmbr0 -j MASQUERADE
+
+auto vmbr1
+iface vmbr1 inet static
+    address {{ internal_ip }}/23
+    bridge_ports {{ internal_interface }}
+    bridge_stp off
+    bridge_fd 0

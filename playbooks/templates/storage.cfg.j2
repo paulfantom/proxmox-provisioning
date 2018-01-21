@@ -1,0 +1,19 @@
+lvmthin: data
+        thinpool vms
+        vgname pve
+        content rootdir,images
+
+dir: local
+        path /var/lib/vz
+        content vztmpl
+        maxfiles 0
+        shared 0
+
+{% if 'nfs' in group_names %}
+nfs: images
+        path /mnt/pve/images/
+        server {{ hostvars[groups['nfs'][0]].inventory_hostname }}
+        export {{ nfs_shared_dir }}
+        options vers=3,soft
+        content iso,vztmpl
+{% endif %}

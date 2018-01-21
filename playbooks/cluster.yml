@@ -1,0 +1,53 @@
+---
+- name: Initialize cluster and manage nodes
+  hosts: all
+  any_errors_fatal: true
+  become: yes
+  tasks:
+  - assert:
+      that: groups['all'] | length > 2
+      msg: "Not enough hosts to create cluster"
+  - name: Check cluster status
+    command: pvecm status
+    register: __pve_status
+    ignore_errors: True
+
+  - name: Initialize a Proxmox cluster
+    command: "pvecm create {{ pve_clustername }} -bindnet0_addr {{ internal_ip }} -ring0_addr {{ internal_ip }}"
+    args:
+      creates: "/etc/pve/corosync.conf"
+    when:
+    - "inventory_hostname == groups['all'][0]"
+    - "'Cannot initialize CMAP service' in __pve_status.stdout_lines"
+
+  - name: Check cluster status
+    command: pvecm status
+    register: __pve_status
+    failed_when: __pve_status.rc == 90
+    until: "'Quorum information' in __pve_status.stdout_lines"
+    retry: 30
+    delay: 5
+    when: "inventory_hostname == groups['all'][0]"
+
+- name: Add proxmox nodes
+  hosts: all[1:]
+  become: yes
+  serial: 1
+  tasks:
+  - name: Add node to Proxmox cluster
+    command: "pvecm add {{ hostvars[groups['all'][0]]['internal_ip'] }} -ring0_addr {{ internal_ip }}"
+    args:
+      creates: "/etc/pve/corosync.conf"
+    register: __new_node
+  
+  - name: Remove stale corosync lock file due to lack of quorum during initialization
+    file:
+      dest: "/etc/pve/priv/lock/file-corosync_conf"
+      state: absent
+    when:
+      - "inventory_hostname == groups['all'][1]"
+
+  - name: Wait for initilzation
+    pause:
+      seconds: 15
+    when: __new_node is changed

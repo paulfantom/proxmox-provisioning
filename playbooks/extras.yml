@@ -1,0 +1,18 @@
+- hosts: all
+  become: yes
+  tasks:
+  - name: Remove subscription banner
+    replace:
+      path: /usr/share/pve-manager/js/pvemanagerlib.js
+      regexp: "(\\s+)if\ \\(data\\.status\ !==\ 'Active'\\)\ {(\\s+.*)?$"
+      replace: "\\1if (data.status === 'Active') {\\2"
+
+- name: Download ISO images
+  hosts: nfs
+  become: yes
+  tasks:
+  - name: Download images
+    get_url:
+      url: "{{ item }}"
+      dest: "{{ nfs_shared_dir }}/template/iso/"
+    with_items: "{{ iso_images }}"

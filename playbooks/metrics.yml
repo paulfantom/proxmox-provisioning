@@ -1,0 +1,40 @@
+- name: Ensure proxmox metrics are available for external Prometheus monitoring system
+  hosts: metrics
+  become: yes
+  tasks:
+  - name: Download graphite exporter
+    unarchive:
+      src: "https://github.com/prometheus/graphite_exporter/releases/download/v0.2.0/graphite_exporter-0.2.0.linux-amd64.tar.gz"
+      dest: "/tmp"
+      remote_src: yes
+      creates: "/tmp/graphite_exporter-0.2.0.linux-amd64/graphite_exporter"
+
+  - name: Move exporter to /usr/local/bin
+    copy:
+      src: "/tmp/graphite_exporter-0.2.0.linux-amd64/graphite_exporter"
+      dest: "/usr/local/bin/graphite_exporter"
+      remote_src: True
+      mode: 0750
+
+  - name: Create systemd file for graphite exporter
+    template:
+      src: graphite_exporter.service.j2
+      dest: /etc/systemd/system/graphite_exporter.service
+      mode: 0644
+
+  - name: Start and enable at boot graphite exporter
+    systemd:
+      daemon_reload: yes
+      name: graphite_exporter
+      state: started
+      enabled: yes
+
+  - name: Create status.cfg placeholder
+    file:
+      path: /etc/pve/status.cfg
+      state: touch
+
+  - name: Copy Proxmox metrics config
+    template:
+      src: proxmox_metrics.cfg.j2
+      dest: /etc/pve/status.cfg

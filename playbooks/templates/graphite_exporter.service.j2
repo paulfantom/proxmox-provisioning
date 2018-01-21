@@ -1,0 +1,13 @@
+[Unit]
+Description=Prometheus Graphite Exporter
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/graphite_exporter -graphite.listen-address ":2003"
+
+SyslogIdentifier=graphite_exporter
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
