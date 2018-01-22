@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/graphite_exporter -graphite.listen-address ":2003"
+ExecStart=/usr/local/bin/graphite_exporter -graphite.listen-address ":2003" -log.level error
 
 SyslogIdentifier=graphite_exporter
 Restart=always
