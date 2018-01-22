@@ -16,6 +16,11 @@ iso_images:
 public_interface: eno1
 internal_interface: eno2
 
+smtp:
+  relay: "[smtp.gmail.com]:587"
+  email: paulfantom@gmail.com
+  pass: dolphins
+
 ### ROLES VARS:
 system_fqdn: "{{ ansible_host }}"
 system_motd: "Proxmox cluster"
