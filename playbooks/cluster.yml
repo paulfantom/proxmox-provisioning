@@ -25,7 +25,7 @@
     register: __pve_status
     failed_when: __pve_status.rc == 90
     until: "'Quorum information' in __pve_status.stdout_lines"
-    retry: 30
+    retries: 30
     delay: 5
     when: "inventory_hostname == groups['all'][0]"
 
