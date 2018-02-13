@@ -18,15 +18,15 @@
       creates: "/etc/pve/corosync.conf"
     when:
     - "inventory_hostname == groups['all'][0]"
-    - "'Cannot initialize CMAP service' in __pve_status.stdout_lines"
-
+    - "'Cannot initialize CMAP service' in __pve_status.stderr_lines"
+    
   - name: Check cluster status
     command: pvecm status
     register: __pve_status
     failed_when: __pve_status.rc == 90
     until: "'Quorum information' in __pve_status.stdout_lines"
     retries: 30
-    delay: 5
+    delay: 30
     when: "inventory_hostname == groups['all'][0]"
 
 - name: Add proxmox nodes
