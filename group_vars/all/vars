@@ -4,6 +4,7 @@ email: paulfantom@gmail.com
 nfs_shared_dir: /srv/shared
 lvm_pvs: /dev/sda5,/dev/sdb1
 pve_clustername: "SuperCluster"
+# password hash generated with `openssl passwd -1`
 pve_admins:
   - name: paulfantom
     mail: "{{ email }}"
