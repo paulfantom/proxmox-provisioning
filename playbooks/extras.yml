@@ -11,6 +11,10 @@
   hosts: nfs
   become: yes
   tasks:
+  - name: Ensure ISO dir exists
+    file:
+      path: "{{ nfs_shared_dir }}/template/iso/"
+      state: directory
   - name: Download images
     get_url:
       url: "{{ item }}"
