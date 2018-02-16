@@ -9,18 +9,20 @@
         - internal_interface in ansible_interfaces
         - public_interface in ansible_interfaces
       msg: "Network interfaces not found. Please check values of `internal_interface` and `public_interface`"
+  - name: Install brige utilities
+    package:
+      name: bridge-utils
+      state: present
   - name: Copy interfaces config
     template:
       src: interfaces.j2
       dest: /etc/network/interfaces
     register: __network_config
-
   - block:
     - name: Reboot to apply network config
       shell: "sleep 5 && shutdown -r now 'Ansible triggered reboot'"
       async: 1
       poll: 0
-  
     - name: Wait for server to come back online
       wait_for_connection:
         delay: 15
